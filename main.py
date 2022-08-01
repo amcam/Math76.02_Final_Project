@@ -298,6 +298,37 @@ print("Min Intensity NP: " + str(np.amin(image)))
 print("Time: " + str(tm.monotonic() - start))
 print(image.shape)
 
+"""
+
+								(i,j,k+1)->(4)*************|4|*************(5)<-(i,j+1,k+1)
+								           @*                              @*
+											    @ *                             @ *
+								         @  *                            @  *
+                       |7|  *                          |5|  *
+                       @    *                          @    *                  *
+									    @	    *                         @     *                 /
+                     @      *                        @      *                /k
+								    @      |8|                      @      |9|              /
+         (i,j,k)->(7)#############|6|#############(6)<--------(i,j+1,k)    *--------->
+								   #        *                      #        *              |   j
+								   #        *                      #        *              |
+								   #        *                      #        *              |i
+								   #        *                      #        *              |
+								   #        *                      #        *              *
+								   #        *                      #        *         
+		 (i+1,j,k+1)---#------>(0)*************|0|*****#*******(1)<-(i+1,j+1,k+1)
+						 	    |11|     @                      |10|     @
+								   #      @                        #      @
+								   #     @                         #     @
+								   #   |3|                         #   |1|
+								   #   @                           #   @
+								   #  @                            #  @
+								   # @                             # @
+								   #@                              #@
+       (i+1,j,k)->(3)#############|2|#############(2)<-(i+1,j+1,k) 
+
+"""
+
 threshold = 10000
 t = tm.monotonic()
 for (i) in range(0,shape[0]-2):
@@ -322,36 +353,7 @@ for (i) in range(0,shape[0]-2):
 			for l in range(0,12):
 				if(edges & 1 << l): 
 					#interpolate point
-          """
-								           (4)*************|4|*************(5)
-								           @*                              @*
-											    @ *                             @ *
-								         @  *                            @  *
-                       |7|  *                          |5|  *
-                       @    *                          @    *             ^>
-									    @	    *                         @     *            /
-                     @      *                        @      *           /k
-								    @      |8|                      @      |9|         /
-         (i,j,k)->(7)#############|6|#############(6)<----------()    *--------->
-								   #        *                      #        *         |   j
-								   #        *                      #        *         |
-								   #        *                      #        *         |i
-								   #        *                      #        *         |
-								   #        *                      #        *         v
-								   #        *                      #        *         
-		 (i+1,j,k+1)---#------>(0)*************|0|*****#*******(1)<-(i+1,j+1,k+1)
-						 	    |11|     @                      |10|     @
-								   #      @                        #      @
-								   #     @                         #     @
-								   #   |3|                         #   |1|
-								   #   @                           #   @
-								   #  @                            #  @
-								   # @                             # @
-								   #@                              #@
-       (i+1,j,k)->(3)#############|2|#############(2)<-()
-					----------------------
-					"""
-					#check if point is already in the list of points
+          					#check if point is already in the list of points
 					#if not add it to the list of points
 
 			#now that the list of points up to here is done you can create the trianges using those points
