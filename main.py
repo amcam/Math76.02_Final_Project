@@ -7,6 +7,39 @@ from matplotlib import pyplot as plt
 import time as tm
 import open3d as o3d
 
+"""
+plt.figure(1)
+plt.hist(image.flatten(), 30, histtype = 'bar', facecolor = 'blue')
+plt.ylabel("Values")
+plt.xlabel("Bin Number")
+plt.title("Histogram")
+"""
+
+"""
+# Normalized
+threshold = 9000
+bwimage = (image > threshold).astype(int)
+plt.figure(2)
+plt.hist(bwimage.flatten(), 2, histtype = 'bar', facecolor = 'blue')
+plt.ylabel("Values")
+plt.xlabel("Bin Number")
+plt.title("Histogram BW Image Intensity")
+plt.show()
+"""
+
+"""
+# Create Point Cloud
+point_cloud = np.transpose(np.array(np.nonzero(bwimage)))
+print(point_cloud.shape)
+
+pcd = o3d.geometry.PointCloud()
+pcd.points = o3d.utility.Vector3dVector(point_cloud)
+o3d.io.write_point_cloud("./TestData/sync.ply", pcd)
+
+pcd_load = o3d.io.read_point_cloud("./TestData/sync.ply")
+o3d.visualization.draw_geometries([pcd_load])
+"""
+
 flC = [
         0x000, 0x109, 0x203, 0x30a, 0x406, 0x50f, 0x605, 0x70c, 0x80c, 0x905, 0xa0f, 0xb06, 0xc0a, 0xd03, 0xe09, 0xf00, 
         0x190, 0x099, 0x393, 0x29a, 0x596, 0x49f, 0x795, 0x69c, 0x99c, 0x895, 0xb9f, 0xa96, 0xd9a, 0xc93, 0xf99, 0xe90, 
@@ -287,16 +320,14 @@ big_array = extract_array.get_3d_array("M4ReconTomo.raw", "M4ReconTomo.dat")
 image = np.array(big_array)
 shape = big_array.shape
 
-
 print(f"The 3d array has {shape[0]} layers, {shape[1]} rows, and {shape[2]} columns!")
 print(f"For example, the intensity value at layer 5, row 7, and column 112 is {big_array[5,7,112]}.\n(Note that we are starting index counting from 0)")
 
-
-start = tm.monotonic()			
-print("Max Intensity NP: " + str(np.amax(image)))
-print("Min Intensity NP: " + str(np.amin(image)))
-print("Time: " + str(tm.monotonic() - start))
-print(image.shape)
+#start = tm.monotonic()			
+#print("Max Intensity NP: " + ste(np.amax(image)))
+#print("Min Intensity NP: " + str(np.amin(image)))
+#print("Time: " + str(tm.monotonic() - start))
+#print(image.shape)
 
 """
 
@@ -328,13 +359,19 @@ print(image.shape)
        (i+1,j,k)->(3)#############|2|#############(2)<-(i+1,j+1,k) 
 
 """
-
-threshold = 10000
+pointToIndex = {}
+pointsOutIndex = 0
+pointsOut = []
+trianglesOut = []
+threshold = 5000
 t = tm.monotonic()
 for (i) in range(0,shape[0]-2):
+	percent = (i / (shape[0]-2)) * 100
+	print(str(percent) + "%")
 	for(j) in range(0,shape[1]-2):
 		for(k) in range(0,shape[2]-2):
 			fl = 0
+			pointSideToIndex = {}
 			v = [(i+1,j,k+1), (i+1,j+1,k+1), (i+1,j+1,k),(i+1,j,k),(i,j,k+1),(i,j+1,k+1),(i,j+1,k),(i,j,k)]
 			if(image[v[0]] > threshold): fl = fl | 1
 			if(image[v[1]] > threshold): fl = fl | 2
@@ -345,51 +382,95 @@ for (i) in range(0,shape[0]-2):
 			if(image[v[6]] > threshold): fl = fl | 64
 			if(image[v[7]] > threshold): fl = fl | 128
 
-			#bin(flC[fl]) gives a binary number describing which of the 12 edges have points
-			if(fl != 0):
-				print(bin(flC[fl]))
-
-			edges = flC[fl]
+			edges = flC[fl] # use the lookup table to get from active points binary number (fl) to active edges
+			points = {}
 			for l in range(0,12):
-				if(edges & 1 << l): 
-					#interpolate point
-          					#check if point is already in the list of points
-					#if not add it to the list of points
+				if(edges & 1 << l):
+					if l == 1:
+						interpk = k + 0.5 #TODO interpolate
+						p = (i+1, j+1, interpk) 
+					elif l == 2:
+						interpj = j + 0.5 #TODO interpolate 
+						p = (i+1, interpj, k)
+					elif l == 3:
+						interpk = k + 0.5 #TODO interpolate 
+						p = (i+1, j, interpk)
+					elif l == 4:
+						interpj = j + 0.5 #TODO interpolate
+						p = (i, interpj, k+1)
+					elif l == 5:
+						interpk = k + 0.5 #TODO interpolate
+						p = (i, j+1, interpk)
+					elif l == 6:
+						interpj = j + 0.5 #TODO interpolate
+						p = (i, interpj, k)
+					elif l == 7:
+						interpk = k + 0.5 #TODO interpolate
+						p = (i, j, interpk)
+					elif l == 8:
+						interpi = i + 0.5 #TODO interpolate
+						p = (interpi, j, k+1)
+					elif l == 9:
+						interpi = i + 0.5 #TODO interpolate
+						p = (interpi, j+1, k+1)
+					elif l == 10:
+						interpi = i + 0.5 #TODO interpolate
+						p = (interpi, j+1, k)
+					else: # l == 11
+						interpi = i + 0.5 #TODO interpolate
+						p = (interpi, j, k)
+					points[l] = p
 
-			#now that the list of points up to here is done you can create the trianges using those points
+			for pointSide in points:
+				point = points[pointSide]
+				if (point in pointToIndex.keys()):
+					pointSideToIndex[pointSide] = pointToIndex[point]
+				else:
+					pointsOut.append(point)
+					pointToIndex[point] = pointsOutIndex
+					pointSideToIndex[pointSide] = pointsOutIndex
+					pointsOutIndex += 1
+			
+			q = 0
+			triangleSideArray = tC[fl]
+			while triangleSideArray[q] != -1:
+				t = (pointSideToIndex[triangleSideArray[q]], pointSideToIndex[triangleSideArray[q+1]], pointSideToIndex[triangleSideArray[q+2]])
+				trianglesOut.append(t)
+				q += 3
 
-print(tm.monotonic() - t)
 
-"""
-plt.figure(1)
-plt.hist(image.flatten(), 30, histtype = 'bar', facecolor = 'blue')
-plt.ylabel("Values")
-plt.xlabel("Bin Number")
-plt.title("Histogram")
-"""
+file = open("rocks.ply", "w")
 
-"""
-# Normalized
-threshold = 9000
-bwimage = (image > threshold).astype(int)
-plt.figure(2)
-plt.hist(bwimage.flatten(), 2, histtype = 'bar', facecolor = 'blue')
-plt.ylabel("Values")
-plt.xlabel("Bin Number")
-plt.title("Histogram BW Image Intensity")
-plt.show()
-"""
 
-"""
-# Create Point Cloud
-point_cloud = np.transpose(np.array(np.nonzero(bwimage)))
-print(point_cloud.shape)
+file = open("OUTPUT_ROCKS.ply","w")
 
-pcd = o3d.geometry.PointCloud()
-pcd.points = o3d.utility.Vector3dVector(point_cloud)
-o3d.io.write_point_cloud("./TestData/sync.ply", pcd)
+file.write("ply\n")
+file.write("format ascii 1.0\n")
+file.write("element vertex " + str(len(pointsOut)) + "\n")
+file.write("property float x\n")
+file.write("property float y\n")
+file.write("property float z\n")
+file.write("element face " + str(len(trianglesOut)) + "\n")
+file.write("property list uchar int vertex_index\n")
+file.write("end_header\n")
 
-pcd_load = o3d.io.read_point_cloud("./TestData/sync.ply")
-o3d.visualization.draw_geometries([pcd_load])
-"""
+
+for i in range(0,len(pointsOut)):
+  print(pointsOut[i])
+  file.write(str(pointsOut[i][0]) + " " + str(pointsOut[i][1]) + " " + str(pointsOut[i][2]) + "\n")
+
+for i in range(0, len(trianglesOut)):
+  print(trianglesOut[i])
+  file.write("3 " + str(trianglesOut[i][0]) + " " + str(trianglesOut[i][1]) + " " + str(trianglesOut[i][2]) + "\n")
+
+file.close()
+
+# open file for
+
+mesh = o3d.io.read_triangle_mesh("OUTPUT_ROCKS.ply")
+
+print("Computing normal and rendering it.")
+mesh.compute_vertex_normals()
+print(np.asarray(mesh.triangle_normals))
+o3d.visualization.draw_geometries([mesh])
 
